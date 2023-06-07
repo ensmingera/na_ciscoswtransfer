@@ -9,22 +9,22 @@
 # END-INTERNAL-SCRIPT-BLOCK
 # These are to just keep pylint happy.
 # Uncomment these to make your linter happy too.
-api_url = "http://netmri"
-http_username = "na_ciscoswtransfer"
-http_password = "foo"
-job_id = 7
-device_id = 31
-batch_id = 8
-hash_list = "Cisco OS SW Hashes"
-repo_region = "Region"
-override_automatic_repo_selection = "on"
-repo_host_override = "IP Address"
-repo_directory_path = "/pub/cisco/ios/"
-max_retries = "0"
-attempt_storage_space_reclaim_if_full = "on"
-clean_old_images = "on"
-dry_run = "on"
-enable_debug = "on"
+# api_url = "http://netmri"
+# http_username = "na_ciscoswtransfer"
+# http_password = "foo"
+# job_id = 7
+# device_id = 31
+# batch_id = 8
+# hash_list = "Cisco OS SW Hashes"
+# repo_region = "Region"
+# override_automatic_repo_selection = "on"
+# repo_host_override = "IP Address"
+# repo_directory_path = "/pub/cisco/ios/"
+# max_retries = "0"
+# attempt_storage_space_reclaim_if_full = "on"
+# clean_old_images = "on"
+# dry_run = "on"
+# enable_debug = "on"
 #------------------------------------------------------------------------------
 # NetMRI Cisco OS Software Transfer
 # na_ciscoswtransfer.py
@@ -1180,8 +1180,6 @@ def main(nmri):
         xfer_handler(nmri, repo_addr, ks_upgrade_info, device, max_retries)
 
     # Copy to other file systems, if required.
-    # NOTE: send_command -should- suffice. Change to async if we find that this
-    # takes longer than send_command timeout allows.
     if ((device.os == "IOS" or device.os == "IOS-XE")
             and len(device.system_fs_info) > 1):
         for item in list(device.system_fs_info.values())[1:]:
@@ -1190,12 +1188,14 @@ def main(nmri):
             nmri.log_message("notif", "Copying"
                                 f" {upgrade_file_info['Filename']}"
                                 f" to '{item['fs']}' ...")
-            cmd = (f"copy {device.system_fs}:/"
-                f"{upgrade_file_info['Filename']} {item['fs']}:/\r\r\r")
+            cmd = (f"copy {device.system_fs}:/{upgrade_file_info['Filename']}"
+                   f" {item['fs']}:/{upgrade_file_info['Filename']}\r\r\r")
             if dry_run:
                 nmri.log_message("debug", f"dry-run cmd: {cmd}")
             else:
-                device.dis.send_command(cmd)
+                # Use send_async_command, otherwise long copy operations
+                # will time out. 1 hour timeout should suffice.
+                device.dis.send_async_command(cmd, 3600, "")
 
     # TODO: Do we need to copy any where other than bootflash?
     #if device.os == "NX-OS":
