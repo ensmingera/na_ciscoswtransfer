@@ -129,7 +129,7 @@ The _Cisco OS SW Regional Repos_ list must be in this format:
 |--------|--------------|---------|
 | `Region` | `Network View` | `IP Address` |  
 
-A repo is automatically selected based on the `repo_region` variable defined from the job UI, and from which _Network View_ in the device resides in NetMRI.  
+A repo is automatically selected based on the `repo_region` variable defined from the job UI, and from which _Network View_ the device resides in NetMRI.  
 The network view is retrieved using the `DeviceRemote` broker, by accessing the `DeviceRemote.virtual_network.VirtualNetworkName` attribute.  
 1. Prepare instructions here...
 
