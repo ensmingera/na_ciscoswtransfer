@@ -405,12 +405,11 @@ def remove_old_images(nmri, device, fs_list):
             raw_output = device.dis.send_command(cmd)
             for line in raw_output.splitlines():
                 match = re.search(r'(?:.*\/|.*(?<=\s)(\S+))', line)
-                if match:
-                    file = match.group(1)
-                    if not file.startswith(device.nxos_kickstart_image):
-                        nmri.log_message("info", f"{' '*4}Found old kickstart"
-                                        f" image: {device.system_fs}:/{file}")
-                        image_list.append(file)
+                file = match.group(1) if match else None
+                if not file.startswith(device.nxos_kickstart_image):
+                    nmri.log_message("info", f"{' '*4}Found old kickstart"
+                                    f" image: {device.system_fs}:/{file}")
+                    image_list.append(file)
 
         # Search for old images that are not kickstart.
         cmd = (f"dir {device.system_fs}: | include {device.platform}.*\.bin$ |"
@@ -418,12 +417,11 @@ def remove_old_images(nmri, device, fs_list):
         raw_output = device.dis.send_command(cmd)
         for line in raw_output.splitlines():
             match = re.search(r'(?:.*\/|.*(?<=\s)(\S+))', line)
-            if match:
-                file = match.group(1)
-                if not file.startswith(device.current_system_image):
-                    nmri.log_message("info", f"{' '*4}Found old image:"
-                                    f" {device.system_fs}:/{file}")
-                    image_list.append(file)
+            file = match.group(1) if match else None
+            if not file.startswith(device.current_system_image):
+                nmri.log_message("info", f"{' '*4}Found old image:"
+                                f" {device.system_fs}:/{file}")
+                image_list.append(file)
         # Delete old images from the list
         if len(image_list) > 0:
             nmri.log_message("info",
@@ -462,14 +460,13 @@ def remove_old_images(nmri, device, fs_list):
         raw_output = device.dis.send_command(cmd)
         for line in raw_output.splitlines():
             match = re.search(fr'.*(?<=\s)({device.platform}\S+)',line)
-            if match:
-                file = match.group(1)
-                # Don't include the current running image
-                if not file.startswith(device.current_system_image):
-                    nmri.log_message("info",
-                                     f"{' '*4} Found old image:"
-                                     f"{fs_name}:/{file}")
-                    image_list.append(file)
+            file = match.group(1) if match else None
+            # Don't include the current running image
+            if not file.startswith(device.current_system_image):
+                nmri.log_message("info",
+                                    f"{' '*4} Found old image:"
+                                    f"{fs_name}:/{file}")
+                image_list.append(file)
         # Delete old images from the list
         if len(image_list) > 0:
             nmri.log_message("info", f"{' '*6}Deleting {len(image_list)}"
