@@ -63,7 +63,6 @@
 #       - NX-OS 5K/6K/7K [Version 4.0(1), or higher]
 #       - NX-OS 3K/9K [in NX-OS mode]
 #       - Adaptive Security Appliance (ASA) 5500-X Series [Ver. 9, or higher]
-#       - Legacy ASA (e.g: 5505) [Ver. 9, or higher]
 #
 # PREQUISITES:
 #   1. NetMRI version 7.5+
@@ -338,6 +337,11 @@ def remove_old_images(nmri, device, fs_list):
                 f"{' '*2}Enumerating old images/inactive packages from"
                 f" {fs_name}:"
             )
+            # Set extension map.
+            ftype_map = {
+                ".pkg": "inactive package",
+                ".bin": "old image"
+            }
             # Prepare command
             cmd = (
                 f"dir {fs_name}:/{device.platform}* | include \.bin|\.pkg"
@@ -354,10 +358,6 @@ def remove_old_images(nmri, device, fs_list):
                 if match:
                     file = match.group(1)
                     build = match.group(2)
-                    ftype_map = {
-                        ".pkg": "inactive package",
-                        ".bin": "old image"
-                    }
                     ftype = ftype_map.get(file[file.rfind("."):], "unknown")
                     # Don't include the current running package
                     if build != device.iosxe_build:
