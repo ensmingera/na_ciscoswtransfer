@@ -102,6 +102,10 @@ Before you begin: Navigate to the _Config Management_ Dashboard, and then click 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Prepare the Cisco OS SW Hashes CSV
+The _Cisco OS SW Hashes_ list must be in this format:
+| Filename | Size | MD5 | SHA512 |
+|----------|------|-----|--------|
+| `filename` | `size in bytes` | `MD5 hash` | `SHA-512 hash` |
 1. Prepare instructions here...
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -118,13 +122,22 @@ Before you begin: Navigate to the _Config Management_ Dashboard, and then click 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Prepare the Cisco OS SW Regional Repos CSV
+_If your organization implements AnyCast addressing for your repos, then you only need one row (per Network View). Or just specify an ad-hoc repo when deploying the job._  
+
+The _Cisco OS SW Regional Repos_ list must be in this format:
+| Region | Network View | Address |
+|--------|--------------|---------|
+| `Region` | `Network View` | `IP Address` |  
+
+A repo is automatically selected based on the `repo_region` variable defined from the job UI, and from which _Network View_ in the device resides in NetMRI.  
+The network view is retrieved using the `DeviceRemote` broker, by accessing the `DeviceRemote.virtual_network.VirtualNetworkName` attribute.  
 1. Prepare instructions here...
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Import the Cisco OS SW Regional Repos CSV
 1. Click on the _Lists_ tab.
-2. click on the _Import_ button.
+2. Click on the _Import_ button.
 3. Click on the _Choose File_ button.
 4. Locate and select `cisco_os_sw_regional_repos.csv`.
 5. Click on the _Import_ button.
