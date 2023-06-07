@@ -564,7 +564,7 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
             xfr_status = "%(Error reading)"
         # send_async_command returns sometimes returns blank output in cases
         # where xfer completes in under 30 seconds.
-        # Not sure how to handle this yet.
+        # Not sure how to handle this yet. (Make our own send_async_command method?)
         else:
             xfr_status = "%(API_ERR)"
         if enable_debug:
