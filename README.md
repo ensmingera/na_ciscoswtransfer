@@ -5,7 +5,7 @@ This script will automate the transfer of Cisco OS software upgrades to a device
 
 This script is designed to run from the NetMRI UI, instead of externally. Doing this:
 * Allows the NOC to access this script from your organization's existing NetMRI deployment.
-* Allows for use of NetMRI's RBAC permissions.
+* Allows for use of NetMRI's RBAC permissions on Script Level Execution.
 * Allows for the ability to schedule the deployment.
 * Allows this script to be deployed against Device Groups.
 * Allows for this script to be used by Triggered Jobs.
