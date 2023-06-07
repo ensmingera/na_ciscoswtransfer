@@ -57,7 +57,7 @@
 #   This script will automate the transfer of Cisco OS software upgrades to a
 #   device managed by NetMRI.
 #
-#   Supported Cisco Platforms:
+#   Supported Cisco OS:
 #       - IOS
 #       - IOS-XE (no SD-WAN)
 #       - NX-OS 5K/6K/7K [Version 4.0(1), or higher]
