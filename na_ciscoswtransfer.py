@@ -120,7 +120,7 @@
 #      Starting with version 7.0(3)I2(1) the system and kickstart images were
 #      combined.
 #      You need to manually transfer and follow specific upgrade path
-#      (otherwise you'll brick your Nexus and have to RMA it). Once the
+#      (otherwise you'll brick your USD $32,000 Nexus, and then have to RMA it). Once the
 #      Nexus is upgraded to 7.0(3)I2(1) or higher, then this script will be
 #      able to transfer future upgrades to it.
 #   10. This script checks if the target upgrade already exists in the default
