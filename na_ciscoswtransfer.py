@@ -15,22 +15,22 @@
 # END-INTERNAL-SCRIPT-BLOCK
 # These are to just keep Pylance happy.
 # Uncomment these to make your Pylance happy too.
-api_url = "http://netmri"
-http_username = "na_ciscoswtransfer"
-http_password = "foo"
-job_id = 7
-device_id = 31
-batch_id = 8
-hash_list = "Cisco OS SW Hashes"
-repo_region = "Region"
-override_automatic_repo_selection = "on"
-repo_host_override = "IP Address"
-repo_directory_path = "/pub/cisco/ios/"
-max_retries = "0"
-attempt_storage_space_reclaim_if_full = "on"
-clean_old_images = "on"
-dry_run = "on"
-enable_debug = "on"
+# api_url = "http://netmri"
+# http_username = "na_ciscoswtransfer"
+# http_password = "foo"
+# job_id = 7
+# device_id = 31
+# batch_id = 8
+# hash_list = "Cisco OS SW Hashes"
+# repo_region = "Region"
+# override_automatic_repo_selection = "on"
+# repo_host_override = "IP Address"
+# repo_directory_path = "/pub/cisco/ios/"
+# max_retries = "0"
+# attempt_storage_space_reclaim_if_full = "on"
+# clean_old_images = "on"
+# dry_run = "on"
+# enable_debug = "on"
 #------------------------------------------------------------------------------
 # NetMRI Cisco OS Software Transfer
 # na_ciscoswtransfer.py
