@@ -1,3 +1,9 @@
+###########################################################################
+## Export of Script: Cisco OS Software Transfer
+## Script-Level: 3
+## Script-Category: Uncategorized
+## Script-Language: Python
+###########################################################################
 # BEGIN-INTERNAL-SCRIPT-BLOCK
 # Script:
 # 	Cisco OS Software Transfer
@@ -7,8 +13,8 @@
 #   ASA upgrades.
 #
 # END-INTERNAL-SCRIPT-BLOCK
-# These are to just keep pylint happy.
-# Uncomment these to make your linter happy too.
+# These are to just keep Pylance happy.
+# Uncomment these to make your Pylance happy too.
 # api_url = "http://netmri"
 # http_username = "na_ciscoswtransfer"
 # http_password = "foo"
