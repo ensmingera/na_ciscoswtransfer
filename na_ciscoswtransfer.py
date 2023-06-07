@@ -393,9 +393,6 @@ def remove_old_images(nmri, device, fs_list):
         return
 
     if device.os == "NX-OS":
-        if device.nxos_aci_mode == True:
-            raise Exception("Nexus in ACI mode is not supported.")
-        
         nmri.log_message("info", f"{' '*2}Enumerating old images from"
                          f" {device.system_fs}")
         
