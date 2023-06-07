@@ -15,22 +15,22 @@
 # END-INTERNAL-SCRIPT-BLOCK
 # These are to just keep Pylance happy.
 # Uncomment these to make your Pylance happy too.
-# api_url = "http://netmri"
-# http_username = "na_ciscoswtransfer"
-# http_password = "foo"
-# job_id = 7
-# device_id = 31
-# batch_id = 8
-# hash_list = "Cisco OS SW Hashes"
-# repo_region = "Region"
-# override_automatic_repo_selection = "on"
-# repo_host_override = "IP Address"
-# repo_directory_path = "/pub/cisco/ios/"
-# max_retries = "0"
-# attempt_storage_space_reclaim_if_full = "on"
-# clean_old_images = "on"
-# dry_run = "on"
-# enable_debug = "on"
+api_url = "http://netmri"
+http_username = "na_ciscoswtransfer"
+http_password = "foo"
+job_id = 7
+device_id = 31
+batch_id = 8
+hash_list = "Cisco OS SW Hashes"
+repo_region = "Region"
+override_automatic_repo_selection = "on"
+repo_host_override = "IP Address"
+repo_directory_path = "/pub/cisco/ios/"
+max_retries = "0"
+attempt_storage_space_reclaim_if_full = "on"
+clean_old_images = "on"
+dry_run = "on"
+enable_debug = "on"
 #------------------------------------------------------------------------------
 # NetMRI Cisco OS Software Transfer
 # na_ciscoswtransfer.py
@@ -104,12 +104,15 @@
 #   5. Since this script does not delete the current running image during
 #      space reclamation, it will fail for devices that can only store one
 #      image on the fs at a time (e.g: old 3560, 2960, etc.)
-#   6. If the current running image was renamed on the device, and then booted
-#      to the renamed image, then this script will continue on as if the device
-#      needs the upgrade.
-#      e.g: "c3560cx-universalk9-mz.152-7.E7.bin" was copied, renamed to 
+#   6. Do not rename the current image on the device, and then attempt to xfer
+#      upgrades to the device afterwards.
+#      (e.g: "c3560cx-universalk9-mz.152-7.E7.bin" is renamed to 
 #      "latest_ios.bin", boot set with "boot system flash:/latest_ios.bin",
-#      then booted to it.
+#      and then booted to it.. pls don't do it.). This script is dependent on
+#      the file names using the Cisco default naming conventions, as it
+#      determines the platform by the Cisco default naming convention.
+#      Exception is: IOS-XE device in INSTALL mode. In this case, the script
+#      will get the info it needs from packages.conf.
 #   7. This copies using 'http' protocol (Other protocols may come later)
 #   8. This script assumes the HTTP client source interface is in a global VRF,
 #      and the repo is accessible via the global VRF. (May possibly allow VRF
@@ -120,7 +123,7 @@
 #      Starting with version 7.0(3)I2(1) the system and kickstart images were
 #      combined.
 #      You need to manually transfer and follow specific upgrade path
-#      (otherwise you'll brick your USD $32,000 Nexus, and then have to RMA it). Once the
+#      (otherwise you'll brick your Nexus and have to RMA it). Once the
 #      Nexus is upgraded to 7.0(3)I2(1) or higher, then this script will be
 #      able to transfer future upgrades to it.
 #   10. This script checks if the target upgrade already exists in the default
@@ -564,7 +567,7 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
             xfr_status = "%(Error reading)"
         # send_async_command returns sometimes returns blank output in cases
         # where xfer completes in under 30 seconds.
-        # Not sure how to handle this yet. (Make our own send_async_command method?)
+        # Not sure how to handle this yet.
         else:
             xfr_status = "%(API_ERR)"
         if enable_debug:
