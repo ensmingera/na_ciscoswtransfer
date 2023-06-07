@@ -63,6 +63,7 @@
 #       - NX-OS 5K/6K/7K [Version 4.0(1), or higher]
 #       - NX-OS 3K/9K [in NX-OS mode]
 #       - Adaptive Security Appliance (ASA) 5500-X Series [Ver. 9, or higher]
+#       - Legacy ASA (e.g: 5505) [Ver. 9, or higher]
 #
 # PREQUISITES:
 #   1. NetMRI version 7.5+
