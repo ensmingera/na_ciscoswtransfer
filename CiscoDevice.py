@@ -47,11 +47,12 @@ class CiscoDevice:
         self.version = self.device.DeviceVersion# Target running version
         self.verinfo = {}                       # Running version (detailed)
         self.os = None                          # Target OS type. Used to determined CLI syntax
+        self.platform = None                    # System platform (e.g: c3560cx)
         self.in_config_mode = False             # State for config terminal
         self.active_intfs = []                  # Interfaces that have an IP and are up/up.
+        self.relay_intfs = {}                   # Interfaces /w relays, and the conf. relays.
         self.current_system_image = None        # Current running image
         self.current_system_image_fs = None     # FS where the current running image resides
-        self.platform = None                    # System platform (e.g: c3560cx)
         self.system_fs = None                   # The default file system on this device
         self.system_fs_info = {}                # Dict of system fs and their free space
         self.asa_multi_context = False          # Boolean flag for ASA multi-context
@@ -224,7 +225,7 @@ class CiscoDevice:
 
         # If we got here, we got problems.
         else:
-            raise Exception("Unable to determine OS")
+            raise ValueError("Unable to determine OS")
 
 
     def get_system_image_info(self):
@@ -344,7 +345,7 @@ class CiscoDevice:
                         self.iosxe_build = match.group(1)
                 # Raise if we still didn't get anything.
                 if not self.iosxe_build:
-                    raise Exception(TypeError)
+                    raise TypeError
             else:
                 self.iosxe_boot_mode = "BUNDLE"
 
@@ -452,7 +453,7 @@ class CiscoDevice:
         """
         # Safety net
         if not self.current_system_image_fs:
-            self.get_system_image_info()
+            raise TypeError("current_system_image_fs is not initialized")
 
         # NX-OS does not have 'show file system'. So we just dir bootflash.
         if self.os == "NX-OS":
@@ -535,14 +536,11 @@ class CiscoDevice:
             # 2023.05.31 - aensminger: Change regex to have negative lookahead
             # for slash. We don't want directories matched.
             file_rexp = r'(?:\s?)+(\d+)\s+.*(?<=\s)(\S+)(?<!/)$'
-        elif (self.os == "IOS" or
-                self.os == "IOS-XE" or
-                self.os == "ASA"):
+        # IOS/IOS-XE/ASA
+        else:
             # 2023.05.31 - aensminger: Change regex to only capture if dir
             # flag is not present (e.g: capture -rwx, but not drwx)
             file_rexp = r'(?:\s?)+(?:\d+)\s+(?:-...)\s+(\d+).*(?<=\s)(.*)'
-        else:
-            raise Exception("get_file_size_info(): OS is undetermined.")
 
         if self.os == "ASA":
             # ASA doesn't allow 'dir' output to be piped
@@ -589,6 +587,68 @@ class CiscoDevice:
         # Regex the CLI output to get the interface list.
         self.active_intfs = re.findall(r'^([^\s]+)', raw_output,
                                        re.MULTILINE)
+
+
+    def get_relay_interfaces(self):
+        """Finds interfaces with DHCP relays configured, and stores them
+        to a dictionary.
+        
+        Sets: Class attributes
+            - relay_intfs (dict): Nested dictionary, with keys:
+                - id (int): The key ID for this dictionary item.
+                    - name (str): Interface name (e.g: Vlan11)
+                    - relays (list): List of configured relays on this interface.
+        
+        Structure is: 
+            {
+                0: {
+                    'name': '<interface name>',
+                    'relays': ['<relay 1>', '<relay 2>', ...]
+                },
+
+                <additional interface>: {
+                    'name': '<add. int name>',
+                    'relays': ['<add. relay 1>', '<add. relay 2>', ...]
+                },
+                ...
+            }
+        """
+        if not self.active_intfs:
+            raise TypeError("active_intfs is not intialized")
+
+        for intf_id in self.active_intfs:
+            # Empty list to store the configured DHCP relays
+            # on this interface.
+            relaylist = []
+
+            # Get the configuration for the interface
+            cmd = f"show running-config interface {intf_id}"
+            raw_output = self.dis.send_command(cmd)
+
+            if self.os == "ASA":
+                helper_re = r'dhcprelay\s+server\s+(\S+)'
+            elif self.os == "NX-OS":
+                helper_re = r'ip\s+dhcp\s+relay\s+address\s+(\S+)'
+            elif self.os == "IOS" or self.os == "IOS-XE":
+                helper_re = r'ip\s+helper-address\s+(\S+)'
+            else:
+                raise ValueError("Unknown OS type")
+
+            for line in raw_output.splitlines():
+                # Regex the relay out
+                match = re.search(helper_re, line)
+                if match:
+                    # Found a relay, so put it in the list.
+                    relaylist.append(match.group(1))
+
+            # If there were relays, capture the interface
+            # and the list of relays.
+            if len(relaylist) > 0:
+                ri_key = len(self.relay_intfs)
+                self.relay_intfs[ri_key] = {
+                    'name': intf_id,
+                    'relays': relaylist
+                }
 
 
     def enter_global_config(self):
