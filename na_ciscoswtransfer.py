@@ -1081,6 +1081,13 @@ def main(nmri):
         severity = "notif" if f_exists_and_valid else "warn"
         result = "passed" if f_exists_and_valid else "failed"
         nmri.log_message(severity, f"Integrity check {result}.")
+        # If NX-OS, we have to delete the file that failed validation.
+        # Otherwise, we'll get prompt to overwrite,
+        # and the default answer is "no".
+        if device.os == "NX-OS" and not f_exists_and_valid:
+            cmd = (f"delete {device.system_fs}:/"
+                   f"{upgrade_file_info['Filename']} no-prompt")
+            device.dis.send_command(cmd)
         # Target upgrade exists, is valid,
         # and this device isn't a NX-OS /w kickstart.
         if f_exists_and_valid and not ks_exists[0]:
@@ -1094,6 +1101,11 @@ def main(nmri):
         severity = "notif" if ks_exists_and_valid else "warn"
         result = "passed" if ks_exists_and_valid else "failed"
         nmri.log_message(severity, f"Integrity check {result}.")
+        # Same with kickstart. 
+        if device.os == "NX-OS" and not ks_exists_and_valid:
+            cmd = (f"delete {device.system_fs}:/"
+                   f"{ks_upgrade_info['Filename']} no-prompt")
+            device.dis.send_command(cmd)
         # Both the system image and kickstart exist, and both are validated.
         # Nothing to do.
         if f_exists_and_valid and ks_exists_and_valid:
