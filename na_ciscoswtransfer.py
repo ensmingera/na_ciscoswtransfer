@@ -15,22 +15,23 @@
 # END-INTERNAL-SCRIPT-BLOCK
 # These are to just keep Pylance happy.
 # Uncomment these to make your Pylance happy too.
-# api_url = "http://netmri"
-# http_username = "na_ciscoswtransfer"
-# http_password = "foo"
-# job_id = 7
-# device_id = 31
-# batch_id = 8
-# hash_list = "Cisco OS SW Hashes"
-# repo_region = "Region"
-# override_automatic_repo_selection = "on"
-# repo_host_override = "IP Address"
-# repo_directory_path = "/pub/cisco/ios/"
-# max_retries = "0"
-# attempt_storage_space_reclaim_if_full = "on"
-# clean_old_images = "on"
-# dry_run = "on"
-# enable_debug = "on"
+#api_url = "http://netmri"
+#http_username = "na_ciscoswtransfer"
+#http_password = "foo"
+#job_id = 7
+#device_id = 31
+#batch_id = 8
+#hash_list = "Cisco OS SW Hashes"
+#repo_region = "Region"
+#override_automatic_repo_selection = "on"
+#repo_host_override = "IP Address"
+#repo_directory_path = "/pub/cisco/ios/"
+#max_retries = "0"
+#attempt_storage_space_reclaim_if_full = "on"
+#clean_old_images = "on"
+#nxos_use_mgmt_vrf = "on"
+#dry_run = "on"
+#enable_debug = "on"
 #------------------------------------------------------------------------------
 # NetMRI Cisco OS Software Transfer
 # na_ciscoswtransfer.py
@@ -165,6 +166,7 @@ from CiscoDevice import CiscoDevice
 #       $max_retries int 3 number
 #       $attempt_storage_space_reclaim_if_full boolean
 #       $clean_old_images boolean
+#       $nxos_use_mgmt_vrf boolean
 #       $dry_run boolean
 #       $enable_debug boolean
 #
@@ -522,7 +524,12 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
         # Nexus uses cURL (curl -O -f {host}).
         copy_cmd = (f"copy {proto}://{repo_addr}{repo_directory_path}/"
                     f"{image['Filename']} {device.system_fs}"
-                    f":/{image['Filename']} vrf default")
+                    f":/{image['Filename']} vrf ")
+        if nxos_use_mgmt_vrf:
+            copy_cmd = copy_cmd + "management"
+        else:
+            copy_cmd = copy_cmd + "default"
+
 
     else:
         # This is for IOS/IOS-XE:
@@ -550,8 +557,8 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
         if enable_debug:
             nmri.log_message("debug", f"raw_output={raw_output}\n"
                              f"xfr_status={xfr_status}")
+    # Handle CCS error on our own.
     except Exception as ccs_error:
-        # Handle ccs error ourselves.
         ccs_err_info = ccs_error.args[0]
         # IOS/IOS-XE/ASA/NX-OS 0x7f Host unresponsive, or file not found.
         if ("Error opening" in ccs_err_info['message'] #IOS/IOS-XE/ASA
@@ -597,13 +604,15 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
 
     # NX-OS uses cURL, so we get to use cURL error codes (man 3 libcurl-errors)
     elif device.os == "NX-OS":
-        for line in raw_output:
-            if "Copy complete" in line:
-                last_status = 0 #CURLE_OK
-            elif "curl:" in line:
-                match = re.search(r'(?:curl:\s+)\((\d+)\)', line)
-                if match:
-                    last_status = int(match.group(1))
+        if "Copy complete" in xfr_status:
+            last_status = 0 #CURLE_OK
+        elif "curl:" in xfr_status:
+            match = re.search(r'(?:curl:\s+)\((\d+)\)', xfr_status)
+            if match:
+                last_status = int(match.group(1))
+        # This shouldn't happen?
+        else:
+            raise ValueError(f"Undetermined cURL return code: {xfr_status}")
 
         # Was code anything except CURLE_OK?
         if last_status > 0:
@@ -795,7 +804,10 @@ def verify_image_integrity(f_info, device):
         nmri.log_message("info", f"dry-run send_command: {cmd}")
         return True
     else:
-        raw_output = device.dis.send_command(cmd)
+        # Use send_async_command. Some devices take longer than 5 minutes
+        # to verify integrity, which puts it over the send_command time out
+        # threshold.
+        raw_output = device.dis.send_async_command(cmd, 1200, "")
         nmri.log_message("info",
                          f"{' '*2}Prompt returned. Validating status ...")
         if enable_debug:
@@ -828,11 +840,8 @@ def xfer_handler(nmri, repo_addr, file_info, device, xfr_retry=0):
         - device (cls): CiscoDevice class reference.
         - xfr_retry (int): Number of retry attempts. (Default: 0)
 
-    Returns:
-        None if loop completed with no errors.
-
     Raises:
-        Exception if failure.
+        Exception if failure, or exhausted max retries.
     """
     # Pre-set the failure reason.
     reason = "Unknown"
@@ -899,8 +908,11 @@ def xfer_handler(nmri, repo_addr, file_info, device, xfr_retry=0):
                                 f"{file_info['Filename']}"
                             )
                     else:
-                        # If single pass, give the specific error.
-                        if single_pass:
+                        # Not single pass, and we've exhausted retries.
+                        if not single_pass:
+                            reason = "MAX_ATTEMPTS_REACHED"
+                        # Single pass, so we give the specific error.
+                        else:
                             if xfr_exp.args[1] == 0x00:
                                 reason = "GENERAL_ERROR"
                             elif xfr_exp.args[1] == 0x3f:
@@ -909,9 +921,7 @@ def xfer_handler(nmri, repo_addr, file_info, device, xfr_retry=0):
                                 reason = "PARTIAL_TRANSFER"
                             elif xfr_exp.args[1] == 0xdf:
                                 reason = "INTEGRITY_CHECK_FAILED"
-                        # Not single pass, and we've exhausted retries.
-                        else:
-                            reason = "MAX_ATTEMPTS_REACHED"
+
                 # Host unresponsive or file not exist. Do not retry.
                 elif xfr_exp.args[1] == 0x7f:
                     xfr_retry = -1
@@ -921,22 +931,26 @@ def xfer_handler(nmri, repo_addr, file_info, device, xfr_retry=0):
                         " details."
                     )
                     reason = "NOTCONNECT_OR_FILENOTEXIST"
+
                 # API error
                 elif xfr_exp.args[1] == 0xff:
                     xfr_retry = -1
                     nmri.log_message("error", "API error occurred.")
                     reason = "API_ERROR"
+
             # Unhandled exception
             else:
                 xfr_retry = -1
                 nmri.log_message("error", f"Unhandled exception: {xfr_exp}")
                 reason = "UNHANDLED_EXCEPTION"
+
     # Complete failure.
     else:
         err = f"Transfer failed ({reason})"
         nmri.log_message("error", err)
         raise Exception(err)
-    # Success.
+
+    # Or, success.
     return
 
 
@@ -961,6 +975,7 @@ def main(nmri):
 
         raise Exception("Non-admin ASA context detected. See custom log for"
                         " details.")
+
     # Is this a VDC?
     if (device.os == "NX-OS"
             and device.nxos_vdc and not device.nxos_default_vdc):
@@ -973,6 +988,7 @@ def main(nmri):
                         f" '{parentName}' ({parentIPDotted})")
         raise Exception("Non-default VDC for Nexus. See custom log for"
                         " details.")
+
     # Is this ACI?
     if device.nxos_aci_mode:
         nmri.log_message("error", "NX-OS in ACI mode is not supported."
@@ -1054,7 +1070,7 @@ def main(nmri):
     ks_exists_and_valid = False
     # Only send if it's actually NX-OS /w kickstart.
     if device.os == "NX-OS" and device.nxos_kickstart_image:
-        ks_exists = device.get_file_size_info(device.systemfs,
+        ks_exists = device.get_file_size_info(device.system_fs,
                                               ks_upgrade_info['Filename'])
 
     # Target upgrade already exists, check if we need to continue or not.
@@ -1091,7 +1107,6 @@ def main(nmri):
     # If user checked "clean old images", then call remove_old_images() early.
     if clean_old_images:
         nmri.log_message("notif", "Forcefully removing old images ...")
-
         fs_list = [item['fs'] for item in device.system_fs_info.values()]
         remove_old_images(nmri, device, fs_list)
         # Refresh fs info to get updated free space after old image deletion. 
@@ -1176,7 +1191,7 @@ def main(nmri):
         nmri.log_message("notif", "Starting transfer of upgrade image ...")
         xfer_handler(nmri, repo_addr, upgrade_file_info, device, max_retries)
     # Do NX-OS kickstart, if need be.
-    #TODO: Change this to "supplemental image"
+    #TODO: Change this to "supplemental image"?
     if (device.os == "NX-OS"
             and device.nxos_kickstart_image and not ks_exists_and_valid):
         nmri.log_message("notif",
@@ -1188,7 +1203,7 @@ def main(nmri):
             and len(device.system_fs_info) > 1):
         for item in list(device.system_fs_info.values())[1:]:
             # Start at the 2nd key. We don't need key 0 (default fs), because
-            # that's what we just transferred to.
+            # that's where we just transferred to..
             nmri.log_message("notif", "Copying"
                                 f" {upgrade_file_info['Filename']}"
                                 f" to '{item['fs']}' ...")
@@ -1201,9 +1216,9 @@ def main(nmri):
                 # will time out. 1 hour timeout should suffice.
                 device.dis.send_async_command(cmd, 3600, "")
 
-    # TODO: Do we need to copy any where other than bootflash?
+    # NOTE: NX-OS does not need the images copied.
+    # 'install all' will handle this.
     #if device.os == "NX-OS":
-
 
     # Success
     return
@@ -1214,9 +1229,11 @@ if __name__ == "__main__":
     dry_run = True if dry_run == "on" else False
     reclaim = True if attempt_storage_space_reclaim_if_full == "on" else False
     ovr_repo = True if override_automatic_repo_selection == "on" else False
+    enable_debug = True if enable_debug == "on" else False
+    nxos_use_mgmt_vrf = True if nxos_use_mgmt_vrf == "on" else False
     # TODO: Check repo_host_override .. is it an IP? Is it valid?
     if ovr_repo and repo_host_override == "IP Address":
-        raise Exception("Invalid repo override host.")
+        raise ValueError("Invalid repo override host.")
     # xfer retries
     try:
         max_retries = int(max_retries)
@@ -1239,8 +1256,6 @@ if __name__ == "__main__":
     # Change the default value from UI to blank
     else:
         repo_directory_path = ""
-
-    enable_debug = True if enable_debug == "on" else False
 
     easyparams = {
         "api_url": api_url,
