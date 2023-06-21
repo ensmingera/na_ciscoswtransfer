@@ -1060,9 +1060,9 @@ def main(nmri):
         return # back to __main__
 
     # Check if the target upgrade image already exists.
+    f_exists_and_valid = False
     f_exists = device.get_file_size_info(device.system_fs,
                                          upgrade_file_info['Filename'])
-    f_exists_and_valid = False
 
     # If this device is a NX-OS /w kickstart, then check if the target
     # kickstart upgrade already exists.
