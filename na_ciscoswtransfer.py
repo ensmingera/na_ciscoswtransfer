@@ -505,6 +505,7 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
         - Exception.args[1] will contain the error code in hex:
             - 0x00 : General error
             - 0x3f : Read error (e.g: broken pipe)
+            - 0x40 : Connection closed by remote host
             - 0x7f : Host unresponsive, or remote file not found.
             - 0xbf : Incomplete transfer
             - 0xff : API error
@@ -525,6 +526,7 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
         copy_cmd = (f"copy {proto}://{repo_addr}{repo_directory_path}/"
                     f"{image['Filename']} {device.system_fs}"
                     f":/{image['Filename']} vrf ")
+        # UI option to use management VRF for NX-OS
         if nxos_use_mgmt_vrf:
             copy_cmd = copy_cmd + "management"
         else:
@@ -549,11 +551,23 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
             nmri.log_message("info", f"dry_run send_async_command: {copy_cmd}")
             return
         else:
-            # NOTE: Timeout doesn't even work? regex seems borked too..
             # USE BLANK REGEX FOR POS ARG 3, OTHERWISE YOU WILL SEE RED..
             raw_output = device.dis.send_async_command(copy_cmd, 15300, "")
         raw_output = raw_output.splitlines()
+        # Get the last line of output (transfer status)
         xfr_status = raw_output[-1]
+        # Sometimes we get the hostname prompt as the last line, or last x
+        # amount of lines.
+        # e.g: raw_output=['!!!!','1234 bytes copied...','hostname#']
+        # Search for the last line, that is not the device prompt. This
+        # contains the status.
+        if (xfr_status.startswith(device.hostname.split('.')[0])
+                and xfr_status.endswith('#')):
+            for line in reversed(raw_output[:-1]):
+                if not line.startswith(device.hostname.split('.')[0]):
+                    xfr_status = line
+                    break
+        # Should have grabbed it.
         if enable_debug:
             nmri.log_message("debug", f"raw_output={raw_output}\n"
                              f"xfr_status={xfr_status}")
@@ -567,6 +581,9 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
         # ASA partial transfer (broken pipe)
         elif "Signature not valid" in ccs_err_info['message']:
             xfr_status = "%(Error reading)"
+        # Connection closed by remote side (e.g: clear line vty)
+        elif "Connection closed by foreign host" in ccs_err_info['message']:
+            xfr_status = "%(CONNECTION_CLOSED)"
         # send_async_command returns sometimes returns blank output in cases
         # where xfer completes in under 30 seconds.
         # Not sure how to handle this yet.
@@ -582,8 +599,11 @@ def transfer_upgrade_image(nmri, repo_addr, image, device):
         match = re.search(r'%(?:.*\((.*)\))', xfr_status)
         last_status = match.group(1) if match else "Unknown"
         if "ERR_OPEN" in last_status:
-            ex = Exception(f"Host unresponsive or file not found")
+            ex = Exception("Host unresponsive or file not found")
             ex.args += (0x7f,)
+        elif "CONNECTION_CLOSED" in last_status:
+            ex = Exception("Connection closed by remote host")
+            ex.args += (0x40,)
         elif "API_ERR" in last_status:
             ex = Exception("API error")
             ex.args += (0xff,)
@@ -681,8 +701,10 @@ def verify_image_integrity(f_info, device):
                      " Waiting for return prompt (See Session Log tab for"
                      " progress) ...")
 
-    # TODO: Seriously cannot tell which platforms/versions support sha512.
-    # IOS 15.2(7) has it, but 15.7(3) doesn't?
+    # TODO: Seriously cannot tell which platforms/versions support sha512?
+    # IOS 15.2(7) has it, but 15.7(3) doesn't? Commented everything for SHA-512
+    # out, until I can find out how to properly determine which IOS version
+    # supports SHA-512 verification.
 
     # Set the algo used for the verification command
     # if f_info['SHA512']:
@@ -931,6 +953,13 @@ def xfer_handler(nmri, repo_addr, file_info, device, xfr_retry=0):
                         " details."
                     )
                     reason = "NOTCONNECT_OR_FILENOTEXIST"
+
+                # Connection closed by remote host
+                elif xfr_exp.args[1] == 0x40:
+                    xfr_retry = -1
+                    nmri.log_message("error",
+                                     "Connection closed by remote host.")
+                    reason = "CONNECTION_CLOSED"
 
                 # API error
                 elif xfr_exp.args[1] == 0xff:
