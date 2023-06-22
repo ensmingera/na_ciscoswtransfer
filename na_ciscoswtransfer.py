@@ -384,7 +384,7 @@ def remove_old_images(nmri, device, fs_list):
                     )
                     cmd = f"delete /force /recursive {fs_name}:/{image}"
                     if dry_run:
-                        nmri.log_message("info", f"dry-run cmd: {cmd}")
+                        nmri.log_message("info", f"dry_run send_command: {cmd}")
                     else:
                         device.dis.send_command(cmd)
             else:
@@ -435,7 +435,7 @@ def remove_old_images(nmri, device, fs_list):
                                  f" Deleting {device.system_fs}:/{image}")
                 cmd = f"delete {device.system_fs}:/{image} no-prompt"
                 if dry_run:
-                    nmri.log_message("info", f"dry-run cmd: {cmd}")
+                    nmri.log_message("info", f"dry_run send_command: {cmd}")
                 else:
                     device.dis.send_command(cmd)
         else:
@@ -480,7 +480,7 @@ def remove_old_images(nmri, device, fs_list):
                 )
                 cmd = f"delete {delargs} {fs_name}:/{image}"
                 if dry_run:
-                    nmri.log_message("info", f"dry-run cmd: {cmd}")
+                    nmri.log_message("info", f"dry_run send_command: {cmd}")
                 else:
                     device.dis.send_command(cmd)
         else:
@@ -801,7 +801,7 @@ def verify_image_integrity(f_info, device):
     result = False
     if dry_run:
         raw_output = "\nDRY RUN"
-        nmri.log_message("info", f"dry-run send_command: {cmd}")
+        nmri.log_message("info", f"dry_run send_async_command: {cmd}")
         return True
     else:
         # Use send_async_command. Some devices take longer than 5 minutes
@@ -1087,7 +1087,10 @@ def main(nmri):
         if device.os == "NX-OS" and not f_exists_and_valid:
             cmd = (f"delete {device.system_fs}:/"
                    f"{upgrade_file_info['Filename']} no-prompt")
-            device.dis.send_command(cmd)
+            if dry_run:
+                nmri.log_message("info", f"dry_run send_async_command: {cmd}")
+            else:
+                device.dis.send_command(cmd)
         # Target upgrade exists, is valid,
         # and this device isn't a NX-OS /w kickstart.
         if f_exists_and_valid and not ks_exists[0]:
@@ -1105,7 +1108,10 @@ def main(nmri):
         if device.os == "NX-OS" and not ks_exists_and_valid:
             cmd = (f"delete {device.system_fs}:/"
                    f"{ks_upgrade_info['Filename']} no-prompt")
-            device.dis.send_command(cmd)
+            if dry_run:
+                nmri.log_message("info", f"dry_run send_async_command: {cmd}")
+            else:
+                device.dis.send_command(cmd)
         # Both the system image and kickstart exist, and both are validated.
         # Nothing to do.
         if f_exists_and_valid and ks_exists_and_valid:
@@ -1178,7 +1184,7 @@ def main(nmri):
             nmri.log_message("error", f"Insufficient space available for"
                              " target upgrade image.")
             if dry_run:
-                nmri.log_message("debug", "Insufficient free space")
+                nmri.log_message("info", "Insufficient free space")
             else:
                 raise Exception("Insufficient free space")
 
@@ -1222,7 +1228,7 @@ def main(nmri):
             cmd = (f"copy {device.system_fs}:/{upgrade_file_info['Filename']}"
                    f" {item['fs']}:/{upgrade_file_info['Filename']}\r\r\r")
             if dry_run:
-                nmri.log_message("debug", f"dry-run cmd: {cmd}")
+                nmri.log_message("info", f"dry_run send_async_command: {cmd}")
             else:
                 # Use send_async_command, otherwise long copy operations
                 # will time out. 1 hour timeout should suffice.
