@@ -334,8 +334,10 @@ class CiscoDevice:
                 # (This was observed on a Cat93k on 16.6.6)
                 else:
                     # We try reading the version from rp_base
-                    cmd = ("more flash:/packages.conf"
-                                " | include rp_base.*\.pkg")
+                    cmd = (
+                        f"more {self.current_system_image_fs}:/"
+                        f"{self.current_system_image} | include rp_base.*\.pkg"
+                    )
                     rp_base = self.dis.send_command(cmd)
                     # Lookbehind, then match maj.rel.rbld group.
                     match = re.search(
