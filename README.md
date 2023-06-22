@@ -69,8 +69,10 @@ git clone https://github.com/ensmingera/na_ciscoswtransfer.git
   * `verify *`
   * `request software *`
   * `install *`
+<!--
   * `configure terminal`
   * `boot *`
+-->
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
