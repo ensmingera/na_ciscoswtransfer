@@ -1050,7 +1050,7 @@ def main(nmri):
                          " stored on the default file system.")
 
     # TODO: For now, we don't support SD-WAN.
-    if device.os == "IOS-XE" and device.iosxe_sdwan['mode']:
+    if device.os == "IOS-XE" and device.iosxe_sdwan['mode'] != "autonomous":
         nmri.log_message("error", "IOS-XE SD-WAN is not supported.")
         raise Exception("IOS-XE SD-WAN is not supported.")
 
