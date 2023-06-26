@@ -192,7 +192,7 @@ def get_list_id(nmri, list_name):
             return item.id
     # No match, raise exception.
     err = f'List "{list_name}" does not exist in this NetMRI.'
-    nmri.log_message("error", f"- {err}")
+    nmri.log_message("error",  f"{' '*2}{err}")
     raise Exception(err)
 
 
@@ -715,7 +715,7 @@ def verify_image_integrity(f_info, device):
     #     raise Exception("Hash algo and value not found")
     if f_info['MD5']:
         h_algo = 'md5'
-        expected_hash = f_info['MD5']
+        expected_hash = f_info['MD5'].lower()
     else:
         raise Exception("MD5 hash not in the list")
 
@@ -913,22 +913,29 @@ def xfer_handler(nmri, repo_addr, file_info, device, xfr_retry=0):
                             f"{max_retries})"
                             " Retrying transfer of upgrade image ..."
                         )
-                        # Delete the partial file.
+                        # Prepare command to delete partial file.
                         if device.os == "NX-OS":
-                            device.dis.send_command(
+                            cmd = (
                                 f"delete {device.system_fs}:/"
                                 f"{file_info['Filename']} no-prompt"
                             )
                         if device.os == "ASA":
-                            device.dis.send_command(
+                            cmd = (
                                 f"delete /noconfirm {device.system_fs}:/"
                                 f"{file_info['Filename']}"
                             )
                         if device.os == "IOS" or device.os == "IOS-XE":
-                            device.dis.send_command(
+                            cmd = (
                                 f"delete /force {device.system_fs}:/"
                                 f"{file_info['Filename']}"
                             )
+                        # Delete the partial file.
+                        if dry_run:
+                            nmri.log_message(
+                                "info", f"dry_run send_command: {cmd}"
+                            )
+                        else:
+                            device.dis.send_command(cmd)
                     else:
                         # Not single pass, and we've exhausted retries.
                         if not single_pass:
@@ -1020,8 +1027,12 @@ def main(nmri):
 
     # Is this ACI?
     if device.nxos_aci_mode:
-        nmri.log_message("error", "NX-OS in ACI mode is not supported."
-                         " Please upgrade manually.")
+        nmri.log_message(
+            "error",
+            "NX-OS in ACI mode is not supported. Please upgrade via the Cisco"
+            " Application Policy Infrastructure Controller that manages this"
+            " device."
+        )
         raise Exception("Nexus ACI mode upgrade not supported.")
 
 
